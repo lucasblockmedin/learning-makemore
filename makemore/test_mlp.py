@@ -128,3 +128,46 @@ print(loss.item())
 # for i in range(C.shape[0]):
 #     plt.text(C[i, 0].item(), C[i, 1].item(), itos[i], ha="center", va="center", color="white")
 # plt.grid('minor')
+
+
+"""
+Notes:
+
+1. Fixing softmax
+We see that the starting loss is really high, even though we can estimate that it should be around 3.3
+because that would be equivalent to assigning the same confidence to each value, so basically random chance
+This happens because we just let our W2 and b2 be initialised at fully random, generating false confidence and wasting training
+Instead, we should normalize them
+Also, we do not want to start at 0, because then we lack entropy and the network might struggle to train
+
+2. Fixing the tanh saturation
+Same thing but happening with pre-activation weights init at random
+They are too big and they saturate the tanh to -1 or 1. But that means
+that in backprop the gradient gets 0, so there is no gradient flowing there
+We do not want that to be the case at init time, because in the worst case we could have a neuron that is fully saturated and therefore just dead
+So we also need to normalize the weights of w1, b1. We want things to be roughly unit gaussian.
+
+3. Usual init solution -> Kaiming normal, dividing by sqrt(fan_in) -> proposed by kaimin he\
+This is no longer that much of a fundamental thing because nn are more stable because of things like:
+    normalization layers, better optimizers, ...
+
+4. batch normalization
+We can normalize the pre-activations in order to make them unit gaussian
+Doing this alone is not great for training, because we want to give the nn freedom to be more spiky or more spread
+in order for it to be more expressive. To achieve that we use a sclae and shift parameters.
+We can init them as torch ones and zeros of size (1, n) where n is the number of neurons in the layer (hidden_dim)
+and hpreact becomes gain((hpreact - mean) / std) + bias
+gain and bias get backpropagated, that way training can scaled the distribution
+-> An interesting side effect of batch norm is that we now introduce a link between elements in a batch
+indeed they are now normalised as a function of teh batch and this ends up being a form of regularization.
+But this has also made it so that people explore other forms of normalization that dont have this side effect.\
+ -> we also remove the bias from the layer when we do batch norm, it is useless because it is removed by the mean
+ and we introduce the batch norm bias
+ Momentum is used to estimate the final batch nmorm values during training, it is important that if batches are too small it is config properly
+
+5. training observability tricks
+Look at the distribution of you activations and weight gradients
+Look at the ratio between your weights and the gradient, it should be around 1e-3, this ensure it trains butr not too abruptly
+
+
+"""
